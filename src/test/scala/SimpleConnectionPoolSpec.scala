@@ -16,7 +16,7 @@ object SimpleConnectionPoolSpec extends Specification with Mockito {
     conn must_== Some(FakeConnection("localhost"))
   }
 
-  "it correctly returns threads to the pool" in {
+  "it correctly returns connections to the pool" in {
     (0 until 100).foreach { i => simpleConnectionPool() { c => () } }
     true must beTrue // If we get here, we're good
   }
