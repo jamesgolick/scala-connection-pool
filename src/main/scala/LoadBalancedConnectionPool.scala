@@ -2,12 +2,13 @@ package connectionpool
 
 class AllNodesDown(message: String) extends Error(message)
 
-class LoadBalancedConnectionPool[Conn](pools:              Seq[ConnectionPool[Conn]],
+class LoadBalancedConnectionPool[Conn](pools:              Seq[LowLevelConnectionPool[Conn]],
                                        nodeFailures:       List[Class[_ <: Throwable]],
                                        maxRetries:         Int = 3,
                                        retryDownNodeAfter: Int = 1200,
-                                       allNodesDownFactor: Int = 2) {
-  case class Node(pool: ConnectionPool[Conn], var downAt: Long = 0) {
+                                       allNodesDownFactor: Int = 2) 
+  extends ConnectionPool[Conn] {
+  case class Node(pool: LowLevelConnectionPool[Conn], var downAt: Long = 0) {
     def isUp: Boolean = {
       downAt == 0 || System.currentTimeMillis - downAt > retryDownNodeAfter
     }

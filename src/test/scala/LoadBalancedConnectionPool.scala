@@ -8,7 +8,7 @@ import org.mockito.Matchers._
 
 object LoadBalancedConnectionPoolSpec extends Specification with Mockito {
   class RecoverableError extends Error("Recoverable, bro")
-  class FakeConnectionPool extends ConnectionPool[FakeConnection] {
+  class FakeConnectionPool extends LowLevelConnectionPool[FakeConnection] {
     var connection: FakeConnection = _
 
     def apply[A]()(f: FakeConnection => A): A = {

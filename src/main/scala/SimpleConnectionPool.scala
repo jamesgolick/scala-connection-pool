@@ -6,7 +6,7 @@ class SimpleConnectionPool[Conn](connectionFactory: ConnectionFactory[Conn],
                                  minIdle:   Int = 5,
                                  maxActive: Int = 20,
                                  maxIdle:   Int = 20)
-  extends ConnectionPool[Conn] {
+  extends ConnectionPool[Conn] with LowLevelConnectionPool[Conn] {
   private val objectFactory = new ObjectFactory(connectionFactory)
   private val config        = {
     val c                   = new GenericObjectPool.Config
