@@ -6,8 +6,7 @@ class LoadBalancedConnectionPool[Conn](pools:              Seq[ConnectionPool[Co
                                        nodeFailures:       List[Class[_ <: Throwable]],
                                        maxRetries:         Int = 3,
                                        retryDownNodeAfter: Int = 1200,
-                                       allNodesDownFactor: Int = 2)
-  extends ConnectionPool[Conn] {
+                                       allNodesDownFactor: Int = 2) {
   case class Node(pool: ConnectionPool[Conn], var downAt: Long = 0) {
     def isUp: Boolean = {
       downAt == 0 || System.currentTimeMillis - downAt > retryDownNodeAfter
@@ -21,14 +20,18 @@ class LoadBalancedConnectionPool[Conn](pools:              Seq[ConnectionPool[Co
   def apply[A]()(f: Conn => A): A = apply(1)(f)
 
   def apply[A](attempt: Int)(f: Conn => A): A = {
-    val node = nextLiveNode()
-
+    val node       = nextLiveNode()
+    val pool       = node.pool
+    val connection = pool.borrow()
+    
     try {
-      node.pool() { conn => f(conn) }
+      val value = f(connection)
+      pool.giveBack(connection)
+      value
     } catch {
-      case e: Throwable if attempt == maxRetries => throw e
-      case e: Throwable if nodeFailures.contains(e.getClass) => failNode(node); apply(attempt + 1)(f)
-      case e: Throwable => throw e
+      case e: Throwable if attempt == maxRetries => pool.invalidate(connection); throw e
+      case e: Throwable if nodeFailures.contains(e.getClass) => pool.invalidate(connection); failNode(node); apply(attempt + 1)(f)
+      case e: Throwable => pool.invalidate(connection); throw e
     }
   }
 

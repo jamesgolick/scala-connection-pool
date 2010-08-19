@@ -18,14 +18,25 @@ class SimpleConnectionPool[Conn](connectionFactory: ConnectionFactory[Conn],
   }
   private val pool          = new GenericObjectPool(objectFactory, config)
   
-
   def apply[A]()(f: Conn => A): A = {
-    val connection = pool.borrowObject.asInstanceOf[Conn]
+    val connection = borrow
 
     try {
-      f(connection)   
+      f(connection)
     } finally {
-      pool.returnObject(connection)
+      giveBack(connection)
     }
+  }
+
+  def borrow(): Conn = {
+    pool.borrowObject.asInstanceOf[Conn]
+  }
+
+  def giveBack(connection: Conn): Unit = {
+    pool.returnObject(connection)
+  }
+
+  def invalidate(connection: Conn): Unit = {
+    pool.invalidateObject(connection)
   }
 }

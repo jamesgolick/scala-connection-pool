@@ -14,6 +14,10 @@ object LoadBalancedConnectionPoolSpec extends Specification with Mockito {
     def apply[A]()(f: FakeConnection => A): A = {
       f(connection)
     }
+
+    def borrow(): FakeConnection = connection
+    def invalidate(connection: FakeConnection): Unit = { }
+    def giveBack(conn: FakeConnection): Unit = { }
   }
 
   val poolOne          = new FakeConnectionPool
