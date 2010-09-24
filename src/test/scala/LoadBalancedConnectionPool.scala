@@ -90,5 +90,23 @@ object LoadBalancedConnectionPoolSpec extends Specification with Mockito {
       loadBalancedPool() { connection => connection must_== poolOneConnection }
       loadBalancedPool() { connection => connection must_== poolTwoConnection }
     }
+
+    "with a canRecover function, removes a node from the pool after a recoverable exception" in {
+      val loadBalancedPool = new LoadBalancedConnectionPool(List(poolOne, poolTwo),
+                                                           { throwable => true },
+                                                           maxRetries         = 3,
+                                                           retryDownNodeAfter = 1200,
+                                                           allNodesDownFactor = 2)
+      var attempt = 0
+      loadBalancedPool() { connection =>
+        attempt match {
+          case 0 => attempt += 1; throw new RecoverableError()
+          case _ => "asdf"
+        }
+      }
+      loadBalancedPool() { connection => connection must_== poolTwoConnection }
+      loadBalancedPool() { connection => connection must_== poolTwoConnection }
+      loadBalancedPool() { connection => connection must_== poolTwoConnection }
+    }
   }
 }

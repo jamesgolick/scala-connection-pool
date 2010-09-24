@@ -3,11 +3,23 @@ package connectionpool
 class AllNodesDown(message: String) extends Error(message)
 
 class LoadBalancedConnectionPool[Conn](pools:              Seq[LowLevelConnectionPool[Conn]],
-                                       nodeFailures:       List[Class[_ <: Throwable]],
-                                       maxRetries:         Int = 3,
-                                       retryDownNodeAfter: Int = 1200,
-                                       allNodesDownFactor: Int = 2) 
+                                       canRecover:         Throwable => Boolean,
+                                       maxRetries:         Int,
+                                       retryDownNodeAfter: Int,
+                                       allNodesDownFactor: Int) 
   extends ConnectionPool[Conn] {
+  def this(pools:              Seq[LowLevelConnectionPool[Conn]],
+           nodeFailures:       Seq[Class[_ <: Throwable]],
+           maxRetries:         Int = 3,
+           retryDownNodeAfter: Int = 1200,
+           allNodesDownFactor: Int = 2) = {
+    this(pools,
+         { throwable => nodeFailures.contains(throwable.getClass) },
+         maxRetries,
+         retryDownNodeAfter,
+         allNodesDownFactor)
+  }
+
   case class Node(pool: LowLevelConnectionPool[Conn], var downAt: Long = 0) {
     def isUp: Boolean = {
       downAt == 0 || System.currentTimeMillis - downAt > retryDownNodeAfter
@@ -31,7 +43,7 @@ class LoadBalancedConnectionPool[Conn](pools:              Seq[LowLevelConnectio
       value
     } catch {
       case e: Throwable if attempt == maxRetries => pool.invalidate(connection); throw e
-      case e: Throwable if nodeFailures.contains(e.getClass) => pool.invalidate(connection); failNode(node); apply(attempt + 1)(f)
+      case e: Throwable if canRecover(e) => pool.invalidate(connection); failNode(node); apply(attempt + 1)(f)
       case e: Throwable => pool.invalidate(connection); throw e
     }
   }
