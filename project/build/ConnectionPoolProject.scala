@@ -11,6 +11,7 @@ class ConnectionPoolProject(info: ProjectInfo) extends DefaultProject(info) with
    */
   val gemAuthor             = "James Golick"
   val gemAuthorEmail        = "jamesgolick@gmail.com"
+  override val gemVersion   = "0.0.2"
   override lazy val gemName = "load_balancing_connection_pool"
 
   /**
