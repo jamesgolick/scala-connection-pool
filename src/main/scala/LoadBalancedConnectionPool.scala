@@ -6,7 +6,7 @@ object LoadBalancedConnectionPool {
   def apply[Conn](pools:              Seq[LowLevelConnectionPool[Conn]],
                   nodeFailures:       Seq[Class[_ <: Throwable]],
                   maxRetries:         Int = 3,
-                  retryDownNodeAfter: Int = 1200,
+                  retryDownNodeAfter: Int = 30000,
                   allNodesDownFactor: Int = 2) = {
     new LoadBalancedConnectionPool(pools,
                                    { throwable => nodeFailures.contains(throwable.getClass) },
