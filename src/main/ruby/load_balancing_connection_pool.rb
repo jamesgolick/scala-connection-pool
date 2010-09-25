@@ -12,7 +12,7 @@ class LoadBalancingConnectionPool
     @pool = LoadBalancedConnectionPool.new(@@converter.asBuffer(pools),
                                            Proc.new { |throwable| options[:recoverable_errors].any? { |e| throwable.getException.is_a?(e) } },
                                            options[:max_retries] || 3,
-                                           options[:retry_down_node_after] || 1200,
+                                           options[:retry_down_node_after] || 30000,
                                            options[:all_nodes_down_factor] || 2)
   end
 
