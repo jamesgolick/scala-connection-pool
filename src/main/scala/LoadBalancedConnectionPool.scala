@@ -2,23 +2,26 @@ package connectionpool
 
 class AllNodesDown(message: String) extends Error(message)
 
+object LoadBalancedConnectionPool {
+  def apply[Conn](pools:              Seq[LowLevelConnectionPool[Conn]],
+                  nodeFailures:       Seq[Class[_ <: Throwable]],
+                  maxRetries:         Int = 3,
+                  retryDownNodeAfter: Int = 1200,
+                  allNodesDownFactor: Int = 2) = {
+    new LoadBalancedConnectionPool(pools,
+                                   { throwable => nodeFailures.contains(throwable.getClass) },
+                                   maxRetries,
+                                   retryDownNodeAfter,
+                                   allNodesDownFactor)
+  }
+}
+
 class LoadBalancedConnectionPool[Conn](pools:              Seq[LowLevelConnectionPool[Conn]],
                                        canRecover:         Throwable => Boolean,
                                        maxRetries:         Int,
                                        retryDownNodeAfter: Int,
                                        allNodesDownFactor: Int) 
   extends ConnectionPool[Conn] {
-  def this(pools:              Seq[LowLevelConnectionPool[Conn]],
-           nodeFailures:       Seq[Class[_ <: Throwable]],
-           maxRetries:         Int = 3,
-           retryDownNodeAfter: Int = 1200,
-           allNodesDownFactor: Int = 2) = {
-    this(pools,
-         { throwable => nodeFailures.contains(throwable.getClass) },
-         maxRetries,
-         retryDownNodeAfter,
-         allNodesDownFactor)
-  }
 
   case class Node(pool: LowLevelConnectionPool[Conn], var downAt: Long = 0) {
     def isUp: Boolean = {

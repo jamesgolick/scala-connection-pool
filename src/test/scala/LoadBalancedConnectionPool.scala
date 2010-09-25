@@ -22,8 +22,8 @@ object LoadBalancedConnectionPoolSpec extends Specification with Mockito {
 
   val poolOne          = new FakeConnectionPool
   val poolTwo          = new FakeConnectionPool
-  val loadBalancedPool = new LoadBalancedConnectionPool(List(poolOne, poolTwo),
-                                                        List(classOf[RecoverableError]))
+  val loadBalancedPool = LoadBalancedConnectionPool(List(poolOne, poolTwo),
+                                                    List(classOf[RecoverableError]))
 
   "borrowing a connection" in {
     val poolOneConnection = mock[FakeConnection]
