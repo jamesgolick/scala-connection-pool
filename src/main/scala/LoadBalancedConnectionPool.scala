@@ -25,8 +25,11 @@ class LoadBalancedConnectionPool[Conn](pools:              Seq[LowLevelConnectio
 
   case class Node(pool: LowLevelConnectionPool[Conn], var downAt: Long = 0) {
     def isUp: Boolean = {
-      downAt == 0 || System.currentTimeMillis - downAt > retryDownNodeAfter
+      neverDown || tryAgain
     }
+
+    private def neverDown: Boolean = downAt == 0
+    private def tryAgain:  Boolean = System.currentTimeMillis - downAt > retryDownNodeAfter
   }
 
   val nodes                    = pools.map { pool => Node(pool) }
@@ -60,7 +63,13 @@ class LoadBalancedConnectionPool[Conn](pools:              Seq[LowLevelConnectio
     }
 
     nextNode match {
-      case node: Node if node.isUp => return node
+      case node: Node if node.isUp =>
+        try {
+          node.pool.borrow()
+          node
+        } catch {
+          case e: Throwable if canRecover(e) => nextLiveNode(attempt + 1)
+        }
       case _ => return nextLiveNode(attempt + 1)
     }
   }

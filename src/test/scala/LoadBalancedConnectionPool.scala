@@ -8,6 +8,8 @@ import org.mockito.Matchers._
 
 object LoadBalancedConnectionPoolSpec extends Specification with Mockito {
   class RecoverableError extends Error("Recoverable, bro")
+  class TimeoutError extends Error("Couldn't connect, bro")
+
   class FakeConnectionPool extends LowLevelConnectionPool[FakeConnection] {
     var connection: FakeConnection = _
 
@@ -18,6 +20,12 @@ object LoadBalancedConnectionPoolSpec extends Specification with Mockito {
     def borrow(): FakeConnection = connection
     def invalidate(connection: FakeConnection): Unit = { }
     def giveBack(conn: FakeConnection): Unit = { }
+  }
+
+  class TimingOutConnectionPool extends FakeConnectionPool {
+    override def borrow(): FakeConnection = {
+      throw new TimeoutError()
+    }
   }
 
   val poolOne          = new FakeConnectionPool
@@ -55,7 +63,7 @@ object LoadBalancedConnectionPoolSpec extends Specification with Mockito {
         loadBalancedPool() { connection =>
           attempt += 1
           throw new RecoverableError
-        }
+       }
         false must beTrue
       } catch {
         case e: RecoverableError => true must beTrue
@@ -107,6 +115,44 @@ object LoadBalancedConnectionPoolSpec extends Specification with Mockito {
       loadBalancedPool() { connection => connection must_== poolTwoConnection }
       loadBalancedPool() { connection => connection must_== poolTwoConnection }
       loadBalancedPool() { connection => connection must_== poolTwoConnection }
+    }
+  }
+
+  "when a connection times out on borrow" in {
+    val poolOne          = new TimingOutConnectionPool
+    val poolTwo          = new FakeConnectionPool
+    val loadBalancedPool = LoadBalancedConnectionPool(List(poolOne, poolTwo),
+                                                      List(classOf[RecoverableError], classOf[TimeoutError]))
+
+    val poolOneConnection = mock[FakeConnection]
+    val poolTwoConnection = mock[FakeConnection]
+    poolOne.connection    = poolOneConnection
+    poolTwo.connection    = poolTwoConnection
+
+    "it recovers from the error and fails the node" in {
+      loadBalancedPool() { connection => connection must_== poolTwoConnection }
+      loadBalancedPool() { connection => connection must_== poolTwoConnection }
+    }
+  }
+
+  "when a connection times out on borrow and the error is not recoverable" in {
+    val poolOne          = new TimingOutConnectionPool
+    val poolTwo          = new FakeConnectionPool
+    val loadBalancedPool = LoadBalancedConnectionPool(List(poolOne, poolTwo),
+                                                      List(classOf[RecoverableError]))
+
+    val poolOneConnection = mock[FakeConnection]
+    val poolTwoConnection = mock[FakeConnection]
+    poolOne.connection    = poolOneConnection
+    poolTwo.connection    = poolTwoConnection
+
+    "it reraises the exception" in {
+      try {
+        loadBalancedPool() { connection => }
+      } catch {
+        case e: TimeoutError => true must beTrue
+        case _               => false must beTrue
+      }
     }
   }
 }
