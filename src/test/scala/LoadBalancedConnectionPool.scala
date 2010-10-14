@@ -12,18 +12,20 @@ object LoadBalancedConnectionPoolSpec extends Specification with Mockito {
 
   class FakeConnectionPool extends LowLevelConnectionPool[FakeConnection] {
     var connection: FakeConnection = _
+    var borrows                    = 0
 
     def apply[A]()(f: FakeConnection => A): A = {
       f(connection)
     }
 
-    def borrow(): FakeConnection = connection
+    def borrow(): FakeConnection = { borrows += 1; connection }
     def invalidate(connection: FakeConnection): Unit = { }
     def giveBack(conn: FakeConnection): Unit = { }
   }
 
   class TimingOutConnectionPool extends FakeConnectionPool {
     override def borrow(): FakeConnection = {
+      borrows += 1
       throw new TimeoutError()
     }
   }
@@ -132,6 +134,9 @@ object LoadBalancedConnectionPoolSpec extends Specification with Mockito {
     "it recovers from the error and fails the node" in {
       loadBalancedPool() { connection => connection must_== poolTwoConnection }
       loadBalancedPool() { connection => connection must_== poolTwoConnection }
+      loadBalancedPool() { connection => connection must_== poolTwoConnection }
+      loadBalancedPool() { connection => connection must_== poolTwoConnection }
+      poolOne.borrows must_== 1
     }
   }
 

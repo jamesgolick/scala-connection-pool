@@ -68,7 +68,9 @@ class LoadBalancedConnectionPool[Conn](pools:              Seq[LowLevelConnectio
           node.pool.borrow()
           node
         } catch {
-          case e: Throwable if canRecover(e) => nextLiveNode(attempt + 1)
+          case e: Throwable if canRecover(e) => 
+            failNode(node)
+            nextLiveNode(attempt + 1)
         }
       case _ => return nextLiveNode(attempt + 1)
     }
