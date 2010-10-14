@@ -77,7 +77,9 @@ class LoadBalancedConnectionPool[Conn](pools:              Seq[LowLevelConnectio
   }
 
   private def failNode(node: Node): Unit = {
-    node.downAt = System.currentTimeMillis
+    synchronized {
+      node.downAt = System.currentTimeMillis
+    }
   }
 
   private def allNodesUp: Unit = {
