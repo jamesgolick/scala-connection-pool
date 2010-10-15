@@ -44,17 +44,19 @@ class LoadBalancedConnectionPool[Conn](pools:              Seq[LowLevelConnectio
     val node       = nextLiveNode()
     val pool       = node.pool
     val connection = pool.borrow()
+    var success    = false
     
     try {
       val value = f(connection)
       pool.giveBack(connection)
+      success   = true
       value
     } catch {
       case e: Throwable if attempt == maxRetries => throw e
       case e: Throwable if canRecover(e) => failNode(node, node.downAt.get); apply(attempt + 1)(f)
       case e: Throwable => throw e
     } finally {
-      pool.invalidate(connection)
+      if (!success) { pool.invalidate(connection) }
     }
   }
 
