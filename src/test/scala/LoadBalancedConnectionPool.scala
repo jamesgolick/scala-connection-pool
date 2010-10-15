@@ -13,6 +13,7 @@ object LoadBalancedConnectionPoolSpec extends Specification with Mockito {
   class FakeConnectionPool extends LowLevelConnectionPool[FakeConnection] {
     var connection: FakeConnection = _
     var borrows                    = 0
+    var returns                    = 0
 
     def apply[A]()(f: FakeConnection => A): A = {
       f(connection)
@@ -20,7 +21,7 @@ object LoadBalancedConnectionPoolSpec extends Specification with Mockito {
 
     def borrow(): FakeConnection = { borrows += 1; connection }
     def invalidate(connection: FakeConnection): Unit = { }
-    def giveBack(conn: FakeConnection): Unit = { }
+    def giveBack(conn: FakeConnection): Unit = { returns += 1 }
   }
 
   class TimingOutConnectionPool extends FakeConnectionPool {
@@ -159,5 +160,28 @@ object LoadBalancedConnectionPoolSpec extends Specification with Mockito {
         case _               => false must beTrue
       }
     }
+  }
+
+  "it doesn't run out of connections when they're being returned correctly" in {
+    val poolOne          = new FakeConnectionPool
+    val poolTwo          = new FakeConnectionPool
+    val loadBalancedPool = LoadBalancedConnectionPool(List(poolOne, poolTwo),
+                                                      List(classOf[RecoverableError], classOf[TimeoutError]))
+
+    val poolOneConnection = mock[FakeConnection]
+    val poolTwoConnection = mock[FakeConnection]
+    poolOne.connection    = poolOneConnection
+    poolTwo.connection    = poolTwoConnection
+
+    loadBalancedPool() { connection => }
+    loadBalancedPool() { connection => }
+    loadBalancedPool() { connection => }
+    loadBalancedPool() { connection => }
+    // it's 4 because we test borrowing a connection to make sure
+    // that it doesn't raise (i.e. on create of a connection)
+    poolOne.borrows must_== 4
+    poolOne.returns must_== 4
+    poolTwo.borrows must_== 4
+    poolTwo.returns must_== 4
   }
 }
