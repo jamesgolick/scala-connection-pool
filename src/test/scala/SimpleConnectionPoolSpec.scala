@@ -8,12 +8,31 @@ import org.mockito.Matchers._
 
 object SimpleConnectionPoolSpec extends Specification with Mockito {
   val fakeConnectionFactory = new FakeConnectionFactory("localhost")
-  val simpleConnectionPool  = new SimpleConnectionPool(fakeConnectionFactory)
+  val max                   = 5
+  val simpleConnectionPool  = new SimpleConnectionPool(fakeConnectionFactory, max = max)
 
   "it supports borrowing of connections" in {
-    var conn: Option[FakeConnection] = None
-    simpleConnectionPool() { c => conn = Some(c) }
-    conn must_== Some(FakeConnection("localhost"))
+    simpleConnectionPool.borrow() must_== FakeConnection("localhost")
+  }
+
+  "it blocks, then raises when there are no resources available" in {
+    for(i <- 0 until max)
+      simpleConnectionPool.borrow()
+
+    try {
+      simpleConnectionPool.borrow()
+      false must_== true
+    } catch {
+      case e: TimeoutError => true must_== true
+      case _ => false must_== true
+    }
+  }
+
+  "it supports invalidating connections" in {
+    simpleConnectionPool.invalidate(simpleConnectionPool.borrow())
+    for(i <- 0 until max) // if the connection is invalidated, we should still be able to borrow max connections
+      simpleConnectionPool.borrow()
+    true must_== true
   }
 
   "it correctly returns connections to the pool" in {
