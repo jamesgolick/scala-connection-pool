@@ -1,5 +1,7 @@
 package connectionpool
 
+import java.util.concurrent.atomic.AtomicLong
+
 class AllNodesDown(message: String) extends Error(message)
 
 object LoadBalancedConnectionPool {
@@ -23,13 +25,13 @@ class LoadBalancedConnectionPool[Conn](pools:              Seq[LowLevelConnectio
                                        allNodesDownFactor: Int) 
   extends ConnectionPool[Conn] {
 
-  case class Node(pool: LowLevelConnectionPool[Conn], var downAt: Long = 0) {
+  case class Node(pool: LowLevelConnectionPool[Conn], var downAt: AtomicLong = new AtomicLong(0)) {
     def isUp: Boolean = {
       neverDown || tryAgain
     }
 
-    private def neverDown: Boolean = downAt == 0
-    private def tryAgain:  Boolean = System.currentTimeMillis - downAt > retryDownNodeAfter
+    private def neverDown: Boolean = downAt.get == 0
+    private def tryAgain:  Boolean = System.currentTimeMillis - downAt.get > retryDownNodeAfter
   }
 
   val nodes                    = pools.map { pool => Node(pool) }
@@ -48,9 +50,11 @@ class LoadBalancedConnectionPool[Conn](pools:              Seq[LowLevelConnectio
       pool.giveBack(connection)
       value
     } catch {
-      case e: Throwable if attempt == maxRetries => pool.invalidate(connection); throw e
-      case e: Throwable if canRecover(e) => pool.invalidate(connection); failNode(node); apply(attempt + 1)(f)
-      case e: Throwable => pool.invalidate(connection); throw e
+      case e: Throwable if attempt == maxRetries => throw e
+      case e: Throwable if canRecover(e) => failNode(node, node.downAt.get); apply(attempt + 1)(f)
+      case e: Throwable => throw e
+    } finally {
+      pool.invalidate(connection)
     }
   }
 
@@ -69,23 +73,19 @@ class LoadBalancedConnectionPool[Conn](pools:              Seq[LowLevelConnectio
           node
         } catch {
           case e: Throwable if canRecover(e) => 
-            failNode(node)
+            failNode(node, node.downAt.get)
             nextLiveNode(attempt + 1)
         }
       case _ => return nextLiveNode(attempt + 1)
     }
   }
 
-  private def failNode(node: Node): Unit = {
-    synchronized {
-      node.downAt = System.currentTimeMillis
-    }
+  private def failNode(node: Node, compareTo: Long): Unit = {
+    node.downAt.compareAndSet(compareTo, System.currentTimeMillis)
   }
 
   private def allNodesUp: Unit = {
-    synchronized {
-      nodes.foreach(_.downAt = 0)
-    }
+    nodes.foreach(_.downAt.set(0))
   }
 
   private def nextNode: Node = synchronized { balancer.next }
