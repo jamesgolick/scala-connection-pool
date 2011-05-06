@@ -16,8 +16,8 @@ class InstrumentedConnectionPool[Conn](name:              String,
 
   val activeConnections = new Counter
 
-  enableJMX("ConnectionPool-%s".format(name)) { jmx =>
-    jmx.addCounter("activeConnections", activeConnections)
+  enableJMX("ConnectionPool") { jmx =>
+    jmx.addCounter("activeConnections-%s".format(name), activeConnections)
   }
 
   override def borrow(): Conn = {
