@@ -35,6 +35,7 @@ class SimpleConnectionPool[Conn](connectionFactory: ConnectionFactory[Conn],
   }
 
   def invalidate(connection: Conn): Unit = {
+    connectionFactory.destroy(connection)
     size.decrementAndGet
   }
 
