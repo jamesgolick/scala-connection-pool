@@ -2,8 +2,10 @@ import sbt._
 import Process._
 
 class ConnectionPoolProject(info: ProjectInfo) extends DefaultProject(info) with rsync.RsyncPublishing with ruby.GemBuilding {
+  val codaRepo  = "Coda Hale's Repository" at "http://repo.codahale.com/"
   val specs     = "org.scala-tools.testing" % "specs_2.8.0" % "1.6.5"
   val mockito   = "org.mockito" % "mockito-all" % "1.8.5"
+  val metrics   = "com.yammer" %% "metrics" % "1.0.7" withSources()
 
   /**
    * Gem build settings.
