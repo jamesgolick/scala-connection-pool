@@ -17,9 +17,13 @@ class SimpleConnectionPool[Conn](connectionFactory: ConnectionFactory[Conn],
     val connection = borrow
 
     try {
-      f(connection)
-    } finally {
+      val result = f(connection)
       giveBack(connection)
+      result
+    } catch {
+      case t: Throwable =>
+        invalidate(connection)
+        throw t
     }
   }
 

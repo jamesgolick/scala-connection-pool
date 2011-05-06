@@ -25,9 +25,14 @@ class InstrumentedConnectionPool[Conn](name:              String,
     activeConnections.inc
 
     try {
-      f(connection)
-    } finally {
+      val result = f(connection)
       giveBack(connection)
+      result
+    } catch {
+      case t: Throwable =>
+        invalidate(connection)
+        throw t
+    } finally {
       activeConnections.dec
     }
   }
