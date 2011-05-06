@@ -19,21 +19,20 @@ class InstrumentedConnectionPool[Conn](name:              String,
   enableJMX("ConnectionPool-%s".format(name)) { jmx =>
     jmx.addCounter("activeConnections", activeConnections)
   }
-  
-  override def apply[A]()(f: Conn => A): A = {
-    val connection = borrow
-    activeConnections.inc
 
-    try {
-      val result = f(connection)
-      giveBack(connection)
-      result
-    } catch {
-      case t: Throwable =>
-        invalidate(connection)
-        throw t
-    } finally {
-      activeConnections.dec
-    }
+  override def borrow(): Conn = {
+    val connection = super.borrow()
+    activeConnections.inc
+    connection
+  }
+
+  override def giveBack(connection: Conn): Unit = {
+    super.giveBack(connection)
+    activeConnections.dec
+  }
+
+  override def invalidate(connection: Conn): Unit = {
+    super.invalidate(connection)
+    activeConnections.dec
   }
 }
