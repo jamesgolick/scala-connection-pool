@@ -5,7 +5,7 @@ class ConnectionPoolProject(info: ProjectInfo) extends DefaultProject(info) with
   val codaRepo  = "Coda Hale's Repository" at "http://repo.codahale.com/"
   val specs     = "org.scala-tools.testing" % "specs_2.8.0" % "1.6.5"
   val mockito   = "org.mockito" % "mockito-all" % "1.8.5"
-  val metrics   = "com.yammer" %% "metrics" % "1.0.7" withSources()
+  val metrics   = "com.yammer.metrics" %% "metrics-scala" % "2.0.0-BETA16" withSources()
 
   /**
    * Gem build settings.

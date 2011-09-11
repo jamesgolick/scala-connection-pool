@@ -1,7 +1,6 @@
 package connectionpool
 
-import com.yammer.metrics.{Counter, Timer}
-import com.yammer.jmx.JmxManaged
+import com.yammer.metrics.Instrumented
 
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.atomic.AtomicInteger
@@ -12,27 +11,23 @@ class InstrumentedConnectionPool[Conn](name:              String,
                                        max:               Int = 20,
                                        timeout:           Int = 500000)
   extends SimpleConnectionPool[Conn](connectionFactory, max, timeout)
-  with JmxManaged {
+  with Instrumented {
 
-  val activeConnections = new Counter
-
-  enableJMX("ConnectionPool") { jmx =>
-    jmx.addCounter("activeConnections-%s".format(name), activeConnections)
-  }
+  val activeConnections = metrics.counter("activeConnections-%s".format(name))
 
   override def borrow(): Conn = {
     val connection = super.borrow()
-    activeConnections.inc
+    activeConnections += 1
     connection
   }
 
   override def giveBack(connection: Conn): Unit = {
     super.giveBack(connection)
-    activeConnections.dec
+    activeConnections -= 1
   }
 
   override def invalidate(connection: Conn): Unit = {
     super.invalidate(connection)
-    activeConnections.dec
+    activeConnections -= 1
   }
 }
