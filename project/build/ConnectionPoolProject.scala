@@ -22,5 +22,5 @@ class ConnectionPoolProject(info: ProjectInfo) extends DefaultProject(info) with
   val sourceArtifact = sbt.Artifact(artifactID, "src", "jar", Some("sources"), Nil, None)
   override def packageToPublishActions = super.packageToPublishActions ++ Seq(packageSrc, `package`)
 
-  def rsyncRepo = "james@jamesgolick.com:/var/www/repo.jamesgolick.com"
+  def rsyncRepo = "fetlife@mvn.dal.fetlife:/var/www/mvn.dal.fetlife"
 }
