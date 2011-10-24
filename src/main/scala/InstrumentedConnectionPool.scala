@@ -14,9 +14,10 @@ class InstrumentedConnectionPool[Conn](name:              String,
   with Instrumented {
 
   val activeConnections = metrics.counter("activeConnections-%s".format(name))
+  val borrowTimer = metrics.timer("borrow-%s".format(name))
 
   override def borrow(): Conn = {
-    val connection = super.borrow()
+    val connection = borrowTimer.time { super.borrow() }
     activeConnections += 1
     connection
   }
